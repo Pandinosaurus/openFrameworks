@@ -44,13 +44,13 @@ ifndef GST_VERSION
 		ifeq ($(shell export PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR);pkg-config gstreamer-1.0 --exists; echo $$?),0)
 			GST_VERSION = 1.0
 			ifdef MAKEFILE_DEBUG
-                $(info GSTVERSION=$(GST_VERSION))
+				$(info GSTVERSION=$(GST_VERSION))
 			endif
 		else
 			GST_VERSION = 0.10
 			ifdef MAKEFILE_DEBUG
-                $(info GSTVERSION=$(GST_VERSION))
-                $(info $(shell export PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR);pkg-config gstreamer-1.0 --exists; echo $$?))
+				$(info GSTVERSION=$(GST_VERSION))
+				$(info $(shell export PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR);pkg-config gstreamer-1.0 --exists; echo $$?))
 			endif
 		endif
 	else
@@ -78,6 +78,17 @@ endif
 ################################################################################
 
 PLATFORM_DEFINES =
+
+# OpenGL API: gl (desktop, GLEW; default), gles2 or gles3 (EGL), e.g. make Debug OF_GL_API=gles3
+OF_GL_API ?= gl
+ifeq ($(OF_GL_API),gl)
+else ifeq ($(OF_GL_API),gles2)
+	PLATFORM_DEFINES += TARGET_OPENGLES TARGET_FORCE_GLES_2
+else ifeq ($(OF_GL_API),gles3)
+	PLATFORM_DEFINES += TARGET_OPENGLES TARGET_OPENGLES_3
+else
+$(error OF_GL_API must be gl, gles2 or gles3 (got "$(OF_GL_API)"))
+endif
 
 # add OF_USING_GTK define IF we have it defined as a system library
 ifeq ($(HAS_SYSTEM_GTK2),0)
@@ -134,49 +145,51 @@ PLATFORM_REQUIRED_ADDONS =
 # >= 4.7.x c++11
 # >= 4.9.x c++14
 # other compilers c++11 by now
-ifeq ($(CXX),g++)
-	GCC_MAJOR_EQ_4 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \= 4)
-	GCC_MAJOR_GT_4 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \> 4)
-	GCC_MINOR_GTEQ_7 := $(shell expr `gcc -dumpversion | cut -f2 -d.` \<= 7)
-	GCC_MINOR_GTEQ_9 := $(shell expr `gcc -dumpversion | cut -f2 -d.` \>= 9)
-	ifeq ("$(GCC_MAJOR_EQ_4)","1")
-		ifeq ("$(GCC_MINOR_GTEQ_7)","1")
-			PLATFORM_CFLAGS = -Wall -Werror=return-type -DHAS_TLS=0
-			PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++0x -DHAS_TLS=0
+
+PLATFORM_CXXFLAGS = -Wall -Werror=return-type
+PLATFORM_CXXVER = -std=c++17
+
+GCC_MAJOR := $(shell expr `gcc -dumpversion | cut -f1 -d.`)
+GCC_MINOR := $(shell expr `gcc -dumpversion | cut -f2 -d.`)
+
+# $(info $(GCC_MAJOR))
+# $(info $(GCC_MINOR))
+# $(info ($(shell expr $(GCC_MAJOR) \>= 8), 1))
+# $(info ($(shell expr $(GCC_MINOR) \< 7), 1))
+
+ifeq ("$(GCC_MAJOR)","4")
+	ifeq ($(shell expr $(GCC_MINOR) \< 7), 1)
+		PLATFORM_CXXVER = -std=c++0x
+		PLATFORM_CXXFLAGS += -DHAS_TLS=0
+	else
+		ifeq ("$(GCC_MINOR)","9")
+			PLATFORM_CXXVER = -std=c++14
+			PLATFORM_CFLAGS += DGCC_HAS_REGEX
 		else
-			ifeq ("$(GCC_MINOR_GTEQ_9)","1")
-				PLATFORM_CFLAGS = -Wall -Werror=return-type -DGCC_HAS_REGEX
-				PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++14 -DGCC_HAS_REGEX
-			else
-				PLATFORM_CFLAGS = -Wall -Werror=return-type
-				PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++11
-			endif
+			PLATFORM_CXXVER = -std=c++11
 		endif
-	endif
-	ifeq ("$(GCC_MAJOR_GT_4)","1")
-		PLATFORM_CFLAGS = -Wall -Werror=return-type -DGCC_HAS_REGEX
-		PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++14 -DGCC_HAS_REGEX
 	endif
 else
-	ifeq ($(CXX),g++-5)
-		PLATFORM_CFLAGS = -Wall -Werror=return-type -DGCC_HAS_REGEX
-		PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++14 -DGCC_HAS_REGEX
+	ifeq ($(shell expr $(GCC_MAJOR) \>= 10), 1)
+		# c++20 for gcc 10 and newer
+		PLATFORM_CXXVER = -std=c++20
 	else
-		ifeq ($(CXX),g++-4.9)
-			PLATFORM_CFLAGS = -Wall -Werror=return-type -DGCC_HAS_REGEX
-			PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++14 -DGCC_HAS_REGEX
+		ifeq ($(shell expr $(GCC_MAJOR) \>= 8), 1)
+			# c++17 for gcc 8 and newer
+			PLATFORM_CXXVER = -std=c++17
 		else
-			ifeq ($(CXX),g++-4.8)
-				PLATFORM_CFLAGS = -Wall -Werror=return-type
-				PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++11
-			else
-				PLATFORM_CFLAGS = -Wall -Werror=return-type
-				PLATFORM_CXXFLAGS = -Wall -Werror=return-type -std=c++11
-			endif
+			# c++14 for gcc 4 and newer
+			PLATFORM_CXXVER = -std=c++14
 		endif
 	endif
+	PLATFORM_CXXFLAGS += -DGCC_HAS_REGEX
+endif
+ifeq ("$(GCC_MAJOR)","5")
+	PLATFORM_CXXVER = -std=c++17
 endif
 
+PLATFORM_CFLAGS = $(PLATFORM_CXXFLAGS)
+PLATFORM_CXXFLAGS += $(PLATFORM_CXXVER)
 
 ################################################################################
 # PLATFORM LDFLAGS
@@ -186,10 +199,14 @@ endif
 #   Note: Leave a leading space when adding list items with the += operator
 ################################################################################
 
-PLATFORM_LDFLAGS = -Wl,-rpath=./libs:./bin/libs -Wl,--as-needed -Wl,--gc-sections
+PLATFORM_LDFLAGS = -Wl,-rpath=./libs:./bin/libs:./ -Wl,--as-needed -Wl,--gc-sections
 
-
-
+ifeq ($(OF_USING_STD_FS),1)
+	# gcc 8 need special file system linking with -lstdc++fs. gcc 9 onwards doesn't
+	ifeq ("$(GCC_MAJOR)","8")
+		PLATFORM_LDFLAGS += -lstdc++fs
+	endif
+endif
 
 ################################################################################
 # PLATFORM OPTIMIZATION CFLAGS
@@ -238,36 +255,34 @@ endif
 #   Note: Leave a leading space when adding list items with the += operator
 ################################################################################
 
-PLATFORM_CORE_EXCLUSIONS =
 
 # core sources
 PLATFORM_CORE_EXCLUSIONS += %.mm
 PLATFORM_CORE_EXCLUSIONS += %.m
-PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofQtUtils.cpp
-PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofQuickTimeGrabber.cpp
-PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofQuickTimePlayer.cpp
+PLATFORM_CORE_EXCLUSIONS += %.swift
+PLATFORM_CORE_EXCLUSIONS += %.kotlin
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofDirectShowGrabber.cpp
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofDirectShowPlayer.cpp
+PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/video/ofMediaFoundationPlayer.cpp
+PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/sound/ofMediaFoundationSoundPlayer.cpp
 
-ifeq ($(LINUX_ARM),1)
-	PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/app/ofAppGlutWindow.cpp
-else
+ifneq ($(LINUX_ARM),1)
 	PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openFrameworks/app/ofAppEGLWindow.cpp
 endif
 
 # third party
-PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/glew/%
+# PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/glew/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/cairo/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/videoInput/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/freetype/%
-PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/FreeImage/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/assimp/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/rtAudio/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/openssl/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/boost/%
-PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/glfw/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/curl/%
 PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/uriparser/%
+PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/metalangle/%
+#PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/glfw/%
 
 ifeq ($(USE_FMOD),0)
 	PLATFORM_CORE_EXCLUSIONS += $(OF_LIBS_PATH)/fmod/%
@@ -308,13 +323,10 @@ PLATFORM_HEADER_SEARCH_PATHS =
 
 PLATFORM_LIBRARIES =
 
-ifneq ($(LINUX_ARM),1)
-	PLATFORM_LIBRARIES += glut
-
-	#PLATFORM_LIBRARIES += gstgl-1.0
-	#PLATFORM_LIBRARIES += SM
-	#PLATFORM_LIBRARIES += ICE
+ifeq ($(LINUX_ARM),1)
+	PLATFORM_LIBRARIES += atomic
 endif
+
 ifneq ($(PLATFORM_ARCH),armv6l)
 	PLATFORM_LIBRARIES += X11
 	PLATFORM_LIBRARIES += Xrandr
@@ -325,12 +337,8 @@ ifneq ($(PLATFORM_ARCH),armv6l)
 	PLATFORM_LIBRARIES += pthread
 endif
 
-PLATFORM_LIBRARIES += freeimage
 ifeq ($(OF_USING_STD_FS),1)
 PLATFORM_LIBRARIES += stdc++fs
-else
-PLATFORM_LIBRARIES += boost_filesystem
-PLATFORM_LIBRARIES += boost_system
 endif
 PLATFORM_LIBRARIES += pugixml
 PLATFORM_LIBRARIES += uriparser
@@ -345,7 +353,7 @@ PLATFORM_SHARED_LIBRARIES =
 
 PLATFORM_PKG_CONFIG_LIBRARIES =
 PLATFORM_PKG_CONFIG_LIBRARIES += cairo
-PLATFORM_PKG_CONFIG_LIBRARIES += zlib
+# PLATFORM_PKG_CONFIG_LIBRARIES += zlib
 PLATFORM_PKG_CONFIG_LIBRARIES += gstreamer-app-$(GST_VERSION)
 PLATFORM_PKG_CONFIG_LIBRARIES += gstreamer-$(GST_VERSION)
 PLATFORM_PKG_CONFIG_LIBRARIES += gstreamer-video-$(GST_VERSION)
@@ -355,20 +363,33 @@ PLATFORM_PKG_CONFIG_LIBRARIES += freetype2
 PLATFORM_PKG_CONFIG_LIBRARIES += fontconfig
 PLATFORM_PKG_CONFIG_LIBRARIES += sndfile
 PLATFORM_PKG_CONFIG_LIBRARIES += openal
-# PLATFORM_PKG_CONFIG_LIBRARIES += openssl
-PLATFORM_PKG_CONFIG_LIBRARIES += libcurl
 
-ifeq ($(CROSS_COMPILING),1)
-	ifeq "$(shell export PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR); pkg-config --exists glfw3 && echo 1)" "1"
-		PLATFORM_PKG_CONFIG_LIBRARIES += glfw3
-		PLATFORM_LIBRARIES += Xinerama
-	endif
-else
-	ifeq "$(shell pkg-config --exists glfw3 && echo 1)" "1"
-		PLATFORM_PKG_CONFIG_LIBRARIES += glfw3
-		PLATFORM_LIBRARIES += Xinerama
-	endif
+
+ifeq "$(shell pkg-config --exists openssl && echo 1)" "1"
+	PLATFORM_PKG_CONFIG_LIBRARIES += openssl
 endif
+
+
+ifeq "$(shell pkg-config --exists libcurl && echo 1)" "1"
+	PLATFORM_PKG_CONFIG_LIBRARIES += libcurl
+endif
+
+ifeq "$(shell pkg-config --exists libcurl4 && echo 1)" "1"
+	PLATFORM_PKG_CONFIG_LIBRARIES += libcurl4
+endif
+
+
+# ifeq ($(CROSS_COMPILING),1)
+# 	ifeq "$(shell export PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR); pkg-config --exists glfw3 && echo 1)" "1"
+# 		PLATFORM_PKG_CONFIG_LIBRARIES += glfw3
+# 		PLATFORM_LIBRARIES += Xinerama
+# 	endif
+# else
+# 	ifeq "$(shell pkg-config --exists glfw3 && echo 1)" "1"
+# 		PLATFORM_PKG_CONFIG_LIBRARIES += glfw3
+# 		PLATFORM_LIBRARIES += Xinerama
+# 	endif
+# endif
 
 ifeq ($(CROSS_COMPILING),1)
 	ifeq "$(shell export PKG_CONFIG_LIBDIR=$(PKG_CONFIG_LIBDIR); pkg-config --exists rtaudio && echo 1)" "1"
@@ -388,9 +409,17 @@ endif
 ifneq ($(LINUX_ARM),1)
 	PLATFORM_PKG_CONFIG_LIBRARIES += libpulse-simple
 	PLATFORM_PKG_CONFIG_LIBRARIES += alsa
-	PLATFORM_PKG_CONFIG_LIBRARIES += gl
-	PLATFORM_PKG_CONFIG_LIBRARIES += glu
-	PLATFORM_PKG_CONFIG_LIBRARIES += glew
+endif
+
+ifeq ($(OF_GL_API),gl)
+	ifneq ($(PLATFORM_ARCH),armv6l)
+		PLATFORM_PKG_CONFIG_LIBRARIES += gl
+		PLATFORM_PKG_CONFIG_LIBRARIES += glu
+		PLATFORM_PKG_CONFIG_LIBRARIES += glew
+	endif
+else
+	PLATFORM_PKG_CONFIG_LIBRARIES += glesv2
+	PLATFORM_PKG_CONFIG_LIBRARIES += egl
 endif
 
 
@@ -466,6 +495,8 @@ PLATFORM_LIBRARY_SEARCH_PATHS =
 #    Don't want to use a default compiler?
 ################################################################################
 #PLATFORM_CXX=
+
+ccache := $(shell which ccache 2>/dev/null)
 
 afterplatform: after
 	@echo

@@ -49,11 +49,8 @@ void ofxCvHaarFinder::setNeighbors(unsigned neighbors) {
 	this->neighbors = neighbors;
 }
 
-void ofxCvHaarFinder::setup(std::string haarFile) {
-
-	this->haarFile = haarFile;
-
-	haarFile = ofToDataPath(haarFile);
+void ofxCvHaarFinder::setup(const of::filesystem::path & fileName) {
+	haarFile = ofToDataPath(fileName);
 #ifdef USE_OLD_CV
 	if(cascade != NULL)
 		cvReleaseHaarClassifierCascade(&cascade);
@@ -71,11 +68,11 @@ void ofxCvHaarFinder::setup(std::string haarFile) {
 	#endif
 
 	if (!cascade)
-        ofLogError("ofxCvHaarFinder") << "setup(): couldn't load Haar cascade file: \"" << haarFile << "\"";
+        ofLogError("ofxCvHaarFinder") << "setup(): couldn't load Haar cascade file: " << haarFile;
 #else
-	cascade.load( haarFile );
+	cascade.load( ofPathToString(haarFile) );
 	if( cascade.empty() )
-		ofLogError("ofxCvHaarFinder") << "setup(): couldn't load Haar cascade file: \"" << haarFile << "\"";
+		ofLogError("ofxCvHaarFinder") << "setup(): couldn't load Haar cascade file: " << haarFile ;
 #endif //USE_OLD_CV
 }
 
@@ -92,12 +89,12 @@ int ofxCvHaarFinder::findHaarObjects(ofImage& input, int minWidth, int minHeight
 
 	ofxCvGrayscaleImage gray;
 	gray.setUseTexture(false);
-	gray.allocate(input.getWidth(), input.getHeight());
+	gray.allocate(static_cast<int>(input.getWidth()), static_cast<int>(input.getHeight()));
 
 	if( input.getImageType() == OF_IMAGE_COLOR ){
 		ofxCvColorImage color;
 		color.setUseTexture(false);
-		color.allocate(input.getWidth(), input.getHeight());
+		color.allocate(static_cast<int>(input.getWidth()), static_cast<int>(input.getHeight()));
 		color = input.getPixels();
 		gray = color;
 	}else if( input.getImageType() == OF_IMAGE_GRAYSCALE ){
@@ -114,12 +111,12 @@ int ofxCvHaarFinder::findHaarObjects(ofImage& input, int minWidth, int minHeight
 int ofxCvHaarFinder::findHaarObjects(ofPixels& input, int minWidth, int minHeight){
 	ofxCvGrayscaleImage gray;
 	gray.setUseTexture(false);
-	gray.allocate(input.getWidth(), input.getHeight());
+	gray.allocate(static_cast<int>(input.getWidth()), static_cast<int>(input.getHeight()));
 
 	if( input.getImageType() == OF_IMAGE_COLOR ){
 		ofxCvColorImage color;
 		color.setUseTexture(false);
-		color.allocate(input.getWidth(), input.getHeight());
+		color.allocate(static_cast<int>(input.getWidth()), static_cast<int>(input.getHeight()));
 		color.setFromPixels(input);
 		gray = color;
 	}else if( input.getImageType() == OF_IMAGE_GRAYSCALE ){
@@ -299,10 +296,10 @@ int ofxCvHaarFinder::findHaarObjects(const ofxCvGrayscaleImage& input,
 	*/
 
 	std::vector<cv::Rect> haarResults;
-	cascade.detectMultiScale(cv::cvarrToMat(img.getCvImage()), haarResults, scaleHaar, neighbors, cv::CASCADE_DO_CANNY_PRUNING, 
+	cascade.detectMultiScale(ofxCvToMat(img.getCvImage()), haarResults, scaleHaar, neighbors, cv::CASCADE_DO_CANNY_PRUNING, 
 		cv::Size(minWidth, minHeight) );
 	
-	nHaarResults = haarResults.size();
+	nHaarResults = static_cast<int>(haarResults.size());
 
 		for (int i = 0; i < nHaarResults; i++ ) {
 			//ofLogNotice("ofxCvHaarFinder") << "findHaarObjects(): " << i << " objects";

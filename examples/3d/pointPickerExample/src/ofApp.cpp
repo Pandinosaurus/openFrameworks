@@ -21,12 +21,14 @@ void ofApp::draw(){
 	ofSetColor(ofColor::gray);
 	mesh.drawWireframe();
 	
-	glPointSize(2);
+	#ifndef TARGET_EMSCRIPTEN
+		glPointSize(2);
+	#endif
 	ofSetColor(ofColor::white);
 	mesh.drawVertices();
 	cam.end();
 	
-	int n = mesh.getNumVertices();
+	int n = static_cast<int>(mesh.getNumVertices());
 	float nearestDistance = 0;
 	glm::vec2 nearestVertex;
 	int nearestIndex = 0;

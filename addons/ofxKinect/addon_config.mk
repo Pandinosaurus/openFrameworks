@@ -68,7 +68,7 @@ common:
 	# a specific platform
 	# ADDON_INCLUDES_EXCLUDE =
 
-linux64:
+linux/64:
 	# linux only, any library that should be included in the project using
 	# pkg-config
 	ADDON_PKG_CONFIG_LIBRARIES = libusb-1.0
@@ -127,7 +127,7 @@ vs:
 	# when parsing the file system looking for include paths exclude this for all or
 	# a specific platform
 
-linuxarmv6l:
+linux/armv6l:
 	# linux only, any library that should be included in the project using
 	# pkg-config
 	ADDON_PKG_CONFIG_LIBRARIES = libusb-1.0
@@ -143,7 +143,7 @@ linuxarmv6l:
 	ADDON_INCLUDES_EXCLUDE += libs/libusb-1.0/%
 
 
-linuxarmv7l:
+linux/armv7l:
 	# linux only, any library that should be included in the project using
 	# pkg-config
 	ADDON_PKG_CONFIG_LIBRARIES = libusb-1.0
@@ -157,6 +157,21 @@ linuxarmv7l:
 	# a specific platform
 	ADDON_INCLUDES_EXCLUDE = libs/libfreenect/platform/%
 	ADDON_INCLUDES_EXCLUDE += libs/libusb-1.0/%
+
+linux/aarch64:
+	# linux only, any library that should be included in the project using
+	# pkg-config
+	ADDON_PKG_CONFIG_LIBRARIES = libusb-1.0
+
+	# when parsing the file system looking for sources exclude this for all or
+	# a specific platform
+	ADDON_SOURCES_EXCLUDE = libs/libfreenect/platform/%
+
+
+	# when parsing the file system looking for include paths exclude this for all or
+	# a specific platform
+	ADDON_INCLUDES_EXCLUDE = libs/libfreenect/platform/%
+	ADDON_INCLUDES_EXCLUDE += libs/libusb-1.0/%	
 
 android/armeabi:
 

@@ -5,6 +5,8 @@
 //  Created by lukasz karluk on 5/07/12.
 //
 
+#include "ofxiOSConstants.h"
+#if defined(OF_UI_KIT) && defined(TARGET_OF_IOS)
 #include "ofxiOSEAGLView.h"
 #include "ofxiOSApp.h"
 #include "ofAppiOSWindow.h"
@@ -12,6 +14,8 @@
 #include "ofGLProgrammableRenderer.h"
 #include <TargetConditionals.h>
 #import <GameController/GameController.h>
+
+using std::shared_ptr;
 
 static ofxiOSEAGLView * _instanceRef = nil;
 
@@ -34,12 +38,11 @@ static ofxiOSEAGLView * _instanceRef = nil;
     return _instanceRef;
 }
 
-- (id)initWithFrame:(CGRect)frame andApp:(ofxiOSApp *)appPtr {
-    [self initWithFrame:frame andApp:appPtr sharegroup:nil];
-    return self;
+- (instancetype)initWithFrame:(CGRect)frame andApp:(ofxiOSApp *)appPtr {
+    return [self initWithFrame:frame andApp:appPtr sharegroup:nil];
 }
 
-- (id)initWithFrame:(CGRect)frame andApp:(ofxiOSApp *)appPtr sharegroup:(EAGLSharegroup *)sharegroup {
+- (instancetype)initWithFrame:(CGRect)frame andApp:(ofxiOSApp *)appPtr sharegroup:(EAGLSharegroup *)sharegroup {
     
     window = dynamic_pointer_cast<ofAppiOSWindow>(ofGetMainLoop()->getCurrentWindow());
     
@@ -96,7 +99,10 @@ static ofxiOSEAGLView * _instanceRef = nil;
 
         window = dynamic_pointer_cast<ofAppiOSWindow>(ofCreateWindow(windowSettings));
 
-        ofRunApp(app);
+        // UIKit already owns the application loop when a custom app delegate
+        // installs this view. Register the app with the recreated window
+        // without starting the main loop again.
+        ofRunApp(window, std::static_pointer_cast<ofBaseApp>(app));
     }
     
     if(window->isProgrammableRenderer() == true) {
@@ -128,8 +134,7 @@ static ofxiOSEAGLView * _instanceRef = nil;
     app = NULL;
     window = NULL;
     
-    [activeTouches release];
-    
+    activeTouches = nil;
     delete screenSize;
     screenSize = NULL;
     delete windowSize;
@@ -146,7 +151,6 @@ static ofxiOSEAGLView * _instanceRef = nil;
 
 - (void)dealloc {
     [self destroy];
-    [super dealloc];
 }
 
 - (void)layoutSubviews {
@@ -248,7 +252,7 @@ static ofxiOSEAGLView * _instanceRef = nil;
     [activeTouches removeAllObjects];
 }
 
-- (void)touchesBegan:(NSSet *)touches 
+- (void)touchesBegan:(NSSet<UITouch *> *)touches
            withEvent:(UIEvent *)event{
     
     if(!bInit || !bSetup) {
@@ -259,12 +263,12 @@ static ofxiOSEAGLView * _instanceRef = nil;
     
     for(UITouch *touch in touches) {
         int touchIndex = 0;
-        while([[activeTouches allValues] containsObject:[NSNumber numberWithInt:touchIndex]]){
+        while([[activeTouches allValues] containsObject:@(touchIndex)]){
             touchIndex++;
         }
         
-        [activeTouches setObject:[NSNumber numberWithInt:touchIndex] forKey:[NSValue valueWithPointer:touch]];
-        
+        [activeTouches setObject:[NSNumber numberWithInt:touchIndex]
+                          forKey:[NSValue valueWithPointer:(__bridge void *)touch]];
         CGPoint touchPoint = [touch locationInView:self];
         
         touchPoint.x *= scaleFactor; // this has to be done because retina still returns points in 320x240 but with high percision
@@ -300,7 +304,7 @@ static ofxiOSEAGLView * _instanceRef = nil;
     }
     
     for(UITouch *touch in touches){
-        int touchIndex = [[activeTouches objectForKey:[NSValue valueWithPointer:touch]] intValue];
+        int touchIndex = [[activeTouches objectForKey:[NSValue valueWithPointer:(__bridge void *)touch]] intValue];
         
         CGPoint touchPoint = [touch locationInView:self];
         
@@ -332,9 +336,9 @@ static ofxiOSEAGLView * _instanceRef = nil;
     }
     
     for(UITouch *touch in touches){
-        int touchIndex = [[activeTouches objectForKey:[NSValue valueWithPointer:touch]] intValue];
+        int touchIndex = [[activeTouches objectForKey:[NSValue valueWithPointer:(__bridge void *)touch]] intValue];
         
-        [activeTouches removeObjectForKey:[NSValue valueWithPointer:touch]];
+        [activeTouches removeObjectForKey:[NSValue valueWithPointer:(__bridge void *)touch]];
         
         CGPoint touchPoint = [touch locationInView:self];
         
@@ -367,7 +371,7 @@ static ofxiOSEAGLView * _instanceRef = nil;
     }
     
     for(UITouch *touch in touches){
-        int touchIndex = [[activeTouches objectForKey:[NSValue valueWithPointer:touch]] intValue];
+        int touchIndex = [[activeTouches objectForKey:[NSValue valueWithPointer:(__bridge void *)touch]] intValue];
         
         CGPoint touchPoint = [touch locationInView:self];
         
@@ -390,3 +394,4 @@ static ofxiOSEAGLView * _instanceRef = nil;
 
 
 @end
+#endif

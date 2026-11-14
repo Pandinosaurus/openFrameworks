@@ -9,7 +9,7 @@ void ofApp::setup(){
 	
 	soundStream.printDeviceList();
 	
-	int bufferSize = 256;
+	int bufferSize = 128;
 
 	left.assign(bufferSize, 0.0);
 	right.assign(bufferSize, 0.0);
@@ -42,8 +42,13 @@ void ofApp::setup(){
 
 	settings.setInListener(this);
 	settings.sampleRate = 44100;
-	settings.numOutputChannels = 0;
-	settings.numInputChannels = 2;
+	#ifdef TARGET_EMSCRIPTEN
+		settings.numOutputChannels = 2;
+		settings.numInputChannels = 2;
+	#else
+		settings.numOutputChannels = 0;
+		settings.numInputChannels = 1;
+	#endif
 	settings.bufferSize = bufferSize;
 	soundStream.setup(settings);
 
@@ -88,7 +93,7 @@ void ofApp::draw(){
 					
 			ofBeginShape();
 			for (unsigned int i = 0; i < left.size(); i++){
-				ofVertex(i*2, 100 -left[i]*180.0f);
+				ofVertex(i*4, 100 -left[i]*180.0f);
 			}
 			ofEndShape(false);
 			
@@ -111,7 +116,7 @@ void ofApp::draw(){
 					
 			ofBeginShape();
 			for (unsigned int i = 0; i < right.size(); i++){
-				ofVertex(i*2, 100 -right[i]*180.0f);
+				ofVertex(i*4, 100 -right[i]*180.0f);
 			}
 			ofEndShape(false);
 			

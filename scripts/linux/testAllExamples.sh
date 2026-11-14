@@ -1,22 +1,26 @@
 #!/bin/bash
 
 export LC_ALL=C
-cd ../../examples
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+OFDIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+OFCORE_EXAMPLES_DIR="${OFDIR}/examples"
+
+cd ${OFCORE_EXAMPLES_DIR}
 
 for category in $( ls . )
 do
-    if [ "$category" = "android" -o "$category" = "ios" -o "$category" = "gles" ]; then
+    if [ ! -d "$category" -o "$category" = "android" -o "$category" = "ios" -o "$category" = "gles" ]; then
             continue
     fi
     cd $category
     for example in $( ls . )
     do
-        if [[ "$example" == osx* ]]
+        if [[ "$example" == osx* ]] || [[ "$example" != *Example ]]
         then
             continue
         fi    
         echo "-----------------------------------------------------------------"
-        echo "building " + $example
+        echo "building [" + $example "]"
         cd $example
         make Debug
         ret=$?
@@ -30,6 +34,7 @@ do
           echo error compiling $example
           exit
         fi
+        echo "build success [" + $example "]"
         cd bin
         ./$example
         cd ../../

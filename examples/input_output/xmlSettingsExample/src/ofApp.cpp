@@ -4,7 +4,7 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
 	ofBackground(255,255,255);
-    ofDisableAntiAliasing();
+	ofDisableAntiAliasing();
 
 	//-----------
 	//the string is printed at the top of the app
@@ -14,7 +14,7 @@ void ofApp::setup(){
 	//we load our settings file
 	//if it doesn't exist we can still make one
 	//by hitting the 's' key
-	if( XML.loadFile("mySettings.xml") ){
+	if( XML.load("mySettings.xml") ){
 		message = "mySettings.xml loaded!";
 	}else{
 		message = "unable to load mySettings.xml check data/ folder";
@@ -69,7 +69,7 @@ void ofApp::setup(){
 
 				//we have only allocated a certan amount of space for our array
 				//so we don't want to read more than that amount of points
-				int totalToRead = MIN(numPtTags, NUM_PTS);
+				int totalToRead = std::min(numPtTags, NUM_PTS);
 
 				for(int i = 0; i < totalToRead; i++){
 					//the last argument of getValue can be used to specify
@@ -112,7 +112,7 @@ void ofApp::draw(){
 	}
 	ofEndShape(false);
 
-    ofFill();
+	ofFill();
 
 	//--------
 	//we make a black area on the left
@@ -151,7 +151,7 @@ void ofApp::keyPressed  (int key){
 
 		//no data gets saved unless you hit the s key
 		if(key == 's'){
-			XML.saveFile("mySettings.xml");
+			XML.save("mySettings.xml");
 			message ="settings saved to xml!";
 		}
 }
@@ -209,7 +209,7 @@ void ofApp::mouseDragged(int x, int y, int button){
 		//x and y data and we remove it from the begining
 		//this way the displayed text always shows the newest data
 		//without going offscreen.
-		int pos = xmlStructure.find("</PT>");
+		int pos = static_cast<int>(xmlStructure.find("</PT>"));
 		xmlStructure = xmlStructure.substr(pos+6);
 	}
 
@@ -228,10 +228,10 @@ void ofApp::mouseDragged(int x, int y, int button){
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
-    
-    //reset so we don't store extra tags
-    XML.clear();
-    
+	
+	//reset so we don't store extra tags
+	XML.clear();
+	
 	//we can also add tags with the same name.
 	//here we are just adding an empty tag
 	//and when the user drags their mouse

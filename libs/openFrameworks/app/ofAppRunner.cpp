@@ -3,32 +3,22 @@
 #include "ofBaseApp.h"
 #include "ofAppBaseWindow.h"
 
-#ifndef TARGET_NO_SOUND
-#include "ofSoundPlayer.h"
-#include "ofSoundStream.h"
-#endif
-
-#include "ofImage.h"
-#include "ofUtils.h"
-#include "ofEvents.h"
-#include "ofMath.h"
-#include "ofGraphics.h"
-#include "ofGLRenderer.h"
-#include "ofGLProgrammableRenderer.h"
-#include "ofTrueTypeFont.h"
-
-#include "ofURLFileLoader.h"
-
+#include "ofLog.h"
+#include "ofGraphicsBaseTypes.h"
+#include "ofRectangle.h"
 #include "ofMainLoop.h"
+#include "ofEvents.h" // of::priv
+#include "ofUtils.h" // initUtils
 
-using namespace std;
+using std::shared_ptr;
 
-#if !defined( TARGET_OF_IOS ) & !defined(TARGET_ANDROID) & !defined(TARGET_EMSCRIPTEN) & !defined(TARGET_RASPBERRY_PI_LEGACY)
+#if !defined(TARGET_NODISPLAY)
+	#if !defined( TARGET_OF_IOS ) & !defined(TARGET_ANDROID) & !defined(TARGET_EMSCRIPTEN) & !defined(TARGET_RASPBERRY_PI_LEGACY)
 	#include "ofAppGLFWWindow.h"
 	//special case so we preserve supplied settngs
 	//TODO: remove me when we remove the ofAppGLFWWindow setters.
 	//--------------------------------------
-	void ofSetupOpenGL(shared_ptr<ofAppGLFWWindow> windowPtr, int w, int h, ofWindowMode screenMode){
+	void ofSetupOpenGL(const shared_ptr<ofAppGLFWWindow> & windowPtr, int w, int h, ofWindowMode screenMode){
 		ofInit();
 		auto settings = windowPtr->getSettings();
 		settings.setSize(w,h);
@@ -36,6 +26,7 @@ using namespace std;
 		ofGetMainLoop()->addWindow(windowPtr);
 		windowPtr->setup(settings);
 	}
+	#endif
 #endif
 
 #ifdef TARGET_LINUX
@@ -54,6 +45,7 @@ using namespace std;
 
 //--------------------------------------
 namespace{
+
     shared_ptr<ofMainLoop> & mainLoop(){
         static shared_ptr<ofMainLoop> * mainLoop(new shared_ptr<ofMainLoop>(new ofMainLoop));
         return *mainLoop;
@@ -100,9 +92,18 @@ namespace{
 }
 
 
-
 void ofExitCallback();
-void ofURLFileLoaderShutdown();
+void ofTrueTypeShutdown();
+void ofCloseFreeImage();
+
+void (*ofURLFileLoaderShutdownHook)() = nullptr;
+
+#if defined(TARGET_ANDROID) || defined (TARGET_LINUX_ARM)
+	inline void ofSoundShutdown(){}
+#else
+	void ofSoundShutdown();
+#endif
+
 
 void ofInit(){
 	if(initialized()) return;
@@ -127,18 +128,19 @@ void ofInit(){
 	signal(SIGABRT, &ofSignalHandler);  // abort signal
 #endif
 
-        of::priv::initutils();
+    of::priv::initutils();
+    of::priv::initfileutils();
 
-	#ifdef WIN32_HIGH_RES_TIMING
-		timeBeginPeriod(1);		// ! experimental, sets high res time
-								// you need to call timeEndPeriod.
-								// if you quit the app other than "esc"
-								// (ie, close the console, kill the process, etc)
-								// at exit wont get called, and the time will
-								// remain high res, that could mess things
-								// up on your system.
-								// info here:http://www.geisswerks.com/ryan/FAQS/timing.html
-	#endif
+#ifdef WIN32_HIGH_RES_TIMING
+    timeBeginPeriod(1);		// ! experimental, sets high res time
+                            // you need to call timeEndPeriod.
+                            // if you quit the app other than "esc"
+                            // (ie, close the console, kill the process, etc)
+                            // at exit wont get called, and the time will
+                            // remain high res, that could mess things
+                            // up on your system.
+                            // info here:http://www.geisswerks.com/ryan/FAQS/timing.html
+#endif
 
 #ifdef TARGET_LINUX
 	if(std::locale().name() == "C"){
@@ -157,7 +159,7 @@ void ofInit(){
 
 #if defined(TARGET_WIN32) && !_MSC_VER //MSYS2 UTF-8 limited support
     setlocale(LC_ALL,"");
-    ofLogWarning("ofInit") << "MSYS2 has limited support for UTF-8. using "<< string( setlocale(LC_ALL,NULL) );
+    ofLogWarning("ofInit") << "MSYS2 has limited support for UTF-8. using "<< std::string( setlocale(LC_ALL,NULL) );
 #endif
 }
 
@@ -167,13 +169,13 @@ shared_ptr<ofMainLoop> ofGetMainLoop(){
 }
 
 //--------------------------------------
-void ofSetMainLoop(shared_ptr<ofMainLoop> newMainLoop) {
+void ofSetMainLoop(const shared_ptr<ofMainLoop> & newMainLoop) {
 	mainLoop() = newMainLoop;
 }
 
 //--------------------------------------
 int ofRunApp(ofBaseApp * OFSA){
-	mainLoop()->run(std::move(shared_ptr<ofBaseApp>(OFSA)));
+	mainLoop()->run(shared_ptr<ofBaseApp>(OFSA));
 	auto ret = ofRunMainLoop();
 #if !defined(TARGET_ANDROID) && !defined(TARGET_OF_IOS)
 	ofExitCallback();
@@ -192,7 +194,7 @@ int ofRunApp(shared_ptr<ofBaseApp> && app){
 }
 
 //--------------------------------------
-void ofRunApp(shared_ptr<ofAppBaseWindow> window, shared_ptr<ofBaseApp> && app){
+void ofRunApp(const shared_ptr<ofAppBaseWindow> & window, shared_ptr<ofBaseApp> && app){
 	mainLoop()->run(window, std::move(app));
 }
 
@@ -205,7 +207,19 @@ int ofRunMainLoop(){
 void ofSetupOpenGL(int w, int h, ofWindowMode screenMode){
 #ifdef TARGET_OPENGLES
 	ofGLESWindowSettings settings;
-	settings.glesVersion = 1;
+	#ifdef GL_ES_VERSION_3_0
+		#ifdef GL_ES_VERSION_3_1
+                settings.setGLESVersion(3,1);
+		#else
+                settings.setGLESVersion(3,0);
+		#endif
+    #else
+    	#ifdef GL_ES_VERSION_2_0
+        	settings.setGLESVersion(2);
+		#else
+			settings.setGLESVersion(1);
+		#endif
+	#endif
 #else
 	ofGLWindowSettings settings;
 	settings.glVersionMajor = 2;
@@ -238,7 +252,7 @@ void ofExitCallback(){
 
 
 	// finish every library and subsystem
-	ofURLFileLoaderShutdown();
+	if (ofURLFileLoaderShutdownHook) ofURLFileLoaderShutdownHook();
 
 	#ifndef TARGET_NO_SOUND
 		//------------------------
@@ -310,6 +324,15 @@ shared_ptr<ofBaseRenderer> & ofGetCurrentRenderer(){
 //--------------------------------------
 ofBaseApp * ofGetAppPtr(){
 	return mainLoop()->getCurrentApp().get();
+}
+
+//--------------------------------------
+std::thread::id ofGetMainThreadId() {
+	return ofGetMainLoop()->get_thread_id() ;
+}
+
+bool ofIsCurrentThreadTheMainThread() {
+	return ofGetMainThreadId() == std::this_thread::get_id();
 }
 
 //--------------------------------------
@@ -422,12 +445,12 @@ glm::vec2 ofGetWindowSize() {
 
 //--------------------------------------------------
 float ofRandomWidth() {
-	return ofRandom(0.f, ofGetWidth());
+	return of::random::uniform<float>(0.f, ofGetWidth());
 }
 
 //--------------------------------------------------
 float ofRandomHeight() {
-	return ofRandom(0.f, ofGetHeight());
+	return of::random::uniform<float>(0.f, ofGetHeight());
 }
 
 //--------------------------------------------------
@@ -436,7 +459,7 @@ ofRectangle	ofGetWindowRect() {
 }
 
 //--------------------------------------
-void ofSetWindowTitle(string title){
+void ofSetWindowTitle(std::string title){
 	mainLoop()->getCurrentWindow()->setWindowTitle(title);
 }
 
@@ -453,6 +476,11 @@ void ofDisableSetupScreen(){
 //--------------------------------------
 void ofToggleFullscreen(){
 	mainLoop()->getCurrentWindow()->toggleFullscreen();
+}
+
+//--------------------------------------
+void ofSetWindowMousePassThrough(bool allowPassThrough){
+	mainLoop()->getCurrentWindow()->setWindowMousePassthrough(allowPassThrough);
 }
 
 //--------------------------------------
@@ -519,3 +547,70 @@ HWND ofGetWin32Window(){
 	return mainLoop()->getCurrentWindow()->getWin32Window();
 }
 #endif
+
+//--------------------------------------
+// time mode, here rather than ofUtils.cpp since it needs the main loop
+namespace of {
+namespace priv {
+void setClockTimeModeSystem();
+void setClockTimeModeFixedRate(uint64_t stepNanos, ofMainLoop & mainLoop);
+}
+}
+
+//--------------------------------------
+ofTimeMode ofGetTimeMode() {
+	if (auto mainLoop = ofGetMainLoop()) {
+		if (auto window = mainLoop->getCurrentWindow()) {
+			return window->events().getTimeMode();
+		}
+	}
+	return ofTimeMode(0);
+}
+
+//--------------------------------------
+void ofSetTimeModeSystem() {
+	auto mainLoop = ofGetMainLoop();
+	if (!mainLoop) {
+		ofLogError("ofSetSystemTimeMode") << "ofMainLoop is not initialized yet, can't set time mode";
+		return;
+	}
+	auto window = mainLoop->getCurrentWindow();
+	if (!window) {
+		ofLogError("ofSetSystemTimeMode") << "No window setup yet can't set time mode";
+		return;
+	}
+	window->events().setTimeModeSystem();
+	of::priv::setClockTimeModeSystem();
+}
+
+//--------------------------------------
+void ofSetTimeModeFixedRate(uint64_t stepNanos) {
+	auto mainLoop = ofGetMainLoop();
+	if (!mainLoop) {
+		ofLogError("ofSetSystemTimeMode") << "ofMainLoop is not initialized yet, can't set time mode";
+		return;
+	}
+	auto window = mainLoop->getCurrentWindow();
+	if (!window) {
+		ofLogError("ofSetSystemTimeMode") << "No window setup yet can't set time mode";
+		return;
+	}
+	window->events().setTimeModeFixedRate(stepNanos);
+	of::priv::setClockTimeModeFixedRate(stepNanos, *mainLoop);
+}
+
+//--------------------------------------
+void ofSetTimeModeFiltered(float alpha) {
+	auto mainLoop = ofGetMainLoop();
+	if (!mainLoop) {
+		ofLogError("ofSetSystemTimeMode") << "ofMainLoop is not initialized yet, can't set time mode";
+		return;
+	}
+	auto window = mainLoop->getCurrentWindow();
+	if (!window) {
+		ofLogError("ofSetSystemTimeMode") << "No window setup yet can't set time mode";
+		return;
+	}
+	window->events().setTimeModeFiltered(alpha);
+	of::priv::setClockTimeModeSystem();
+}

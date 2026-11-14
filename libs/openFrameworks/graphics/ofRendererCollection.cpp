@@ -26,6 +26,17 @@ std::shared_ptr<ofBaseGLRenderer> ofRendererCollection::getGLRenderer(){
 
 bool ofRendererCollection::rendersPathPrimitives(){return true;}
 
+
+int ofRendererCollection::getMaxTextureSize() {
+	// pull the value from the first renderer.
+	if (!renderers.empty()) {
+		return renderers.front()->getMaxTextureSize();
+	} else {
+		ofLogWarning() << "No renderer in renderer collection, max texture size requested. Returning 0.";
+		return 0;
+	}
+}
+
 void ofRendererCollection::startRender(){
 	for(auto renderer: renderers){
 		renderer->startRender();
@@ -89,6 +100,12 @@ void ofRendererCollection::draw(const ofBaseVideoDraws & video, float x, float y
    for(auto renderer: renderers){
 	   renderer->draw(video,x,y,w,h);
    }
+}
+
+void ofRendererCollection::drawBackgroundGradient(const ofFloatColor& start, const ofFloatColor& end, ofGradientMode mode) const {
+	for(auto renderer: renderers){
+		renderer->drawBackgroundGradient(start, end, mode);
+	}
 }
 
 /*void bind(const ofBaseVideoDraws & video) const{
@@ -386,31 +403,31 @@ void ofRendererCollection::setupScreen(){
 }
 
 // color options
-void ofRendererCollection::setColor(int r, int g, int b){
+void ofRendererCollection::setColor(float r, float g, float b){
    for(auto renderer: renderers){
 	   renderer->setColor(r,g,b);
 	}
 }
 
-void ofRendererCollection::setColor(int r, int g, int b, int a){
+void ofRendererCollection::setColor(float r, float g, float b, float a){
    for(auto renderer: renderers){
 	   renderer->setColor(r,g,b,a);
 	}
 }
 
-void ofRendererCollection::setColor(const ofColor & color){
+void ofRendererCollection::setColor(const ofFloatColor & color){
    for(auto renderer: renderers){
 	   renderer->setColor(color);
 	}
 }
 
-void ofRendererCollection::setColor(const ofColor & color, int _a){
+void ofRendererCollection::setColor(const ofFloatColor & color, float _a){
    for(auto renderer: renderers){
 	   renderer->setColor(color,_a);
 	}
 }
 
-void ofRendererCollection::setColor(int gray){
+void ofRendererCollection::setColor(float gray){
    for(auto renderer: renderers){
 	   renderer->setColor(gray);
 	}
@@ -423,15 +440,15 @@ void ofRendererCollection::ofRendererCollection::setHexColor( int hexColor ){
 } // hex, like web 0xFF0033;
 
 // bg color
-ofColor ofRendererCollection::getBackgroundColor(){
+ofFloatColor ofRendererCollection::getBackgroundColor(){
 	if(renderers.size()){
 		return renderers[0]->getBackgroundColor();
 	}else{
-		return ofColor(200);
+		return ofFloatColor(200.f/255.f);
 	}
 }
 
-void ofRendererCollection::setBackgroundColor(const ofColor & color){
+void ofRendererCollection::setBackgroundColor(const ofFloatColor & color){
    for(auto renderer: renderers){
 	   renderer->setBackgroundColor(color);
 	}
@@ -445,7 +462,7 @@ bool ofRendererCollection::getBackgroundAuto(){
 	}
 }
 
-void ofRendererCollection::background(const ofColor & c){
+void ofRendererCollection::background(const ofFloatColor & c){
    for(auto renderer: renderers){
 	   renderer->background(c);
 	}
@@ -457,13 +474,13 @@ void ofRendererCollection::background(float brightness){
 	}
 }
 
-void ofRendererCollection::background(int hexColor, float _a){
+void ofRendererCollection::background(int hexColor, int _a){
    for(auto renderer: renderers){
 	   renderer->background(hexColor,_a);
 	}
 }
 
-void ofRendererCollection::background(int r, int g, int b, int a){
+void ofRendererCollection::background(float r, float g, float b, float a){
    for(auto renderer: renderers){
 	   renderer->background(r,g,b,a);
 	}
@@ -544,10 +561,22 @@ void ofRendererCollection::setLineWidth(float lineWidth){
    }
 }
 
+void ofRendererCollection::setPointSize(float pointSize){
+	for(auto renderer: renderers){
+		renderer->setPointSize(pointSize);
+	}
+}
+
 void ofRendererCollection::setDepthTest(bool depthTest) {
    for(auto renderer: renderers){
 	   renderer->setDepthTest(depthTest);
    }
+}
+
+void ofRendererCollection::setDepthWrite(bool write) {
+	for(auto renderer: renderers){
+		renderer->setDepthWrite(write);
+	}
 }
 
 void ofRendererCollection::setBlendMode(ofBlendMode blendMode){
@@ -567,16 +596,12 @@ void ofRendererCollection::setCircleResolution(int res){
 }
 void ofRendererCollection::enablePointSprites(){
    for(auto renderer: renderers){
-		if(renderer->getType()=="GL" || renderer->getType()=="ProgrammableGL"){
-			std::dynamic_pointer_cast<ofBaseGLRenderer>(renderer)->enablePointSprites();
-		}
+	   renderer->enablePointSprites();
 	}
 }
 void ofRendererCollection::disablePointSprites(){
    for(auto renderer: renderers){
-		if(renderer->getType()=="GL" || renderer->getType()=="ProgrammableGL"){
-			std::dynamic_pointer_cast<ofBaseGLRenderer>(renderer)->disablePointSprites();
-		}
+	   renderer->disablePointSprites();
 	}
 }
 

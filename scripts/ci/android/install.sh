@@ -14,6 +14,13 @@ fi
 # Install linux dependencies (for project generator to work)
 sudo $OF_ROOT/scripts/linux/ubuntu/install_dependencies.sh -y;
 
+sudo add-apt-repository -y ppa:dns/gnu
+sudo apt-get update -q
+sudo apt-get install -y --allow-unauthenticated gcc-6 g++-6
+sudo apt-get install -y gperf coreutils libxrandr-dev libxinerama-dev libx11-dev libxcursor-dev libxi-dev
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 100
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 100
+
 SCRIPT_DIR="${BASH_SOURCE%/*}"
 if [[ ! -d "$SCRIPT_DIR" ]]; then SCRIPT_DIR="$PWD"; fi
 . "$SCRIPT_DIR/../../dev/downloader.sh"
@@ -27,9 +34,9 @@ if [ "$(ls -A ${NDK_DIR})" ]; then
     ls -A ${NDK_DIR}
 else
     echo "Downloading NDK"
-    downloader -q "https://dl.google.com/android/repository/$NDK_DIR-linux-x86_64.zip"
+    downloader -q "https://dl.google.com/android/repository/$NDK_DIR-linux.zip"
     echo "Uncompressing NDK"
-    unzip "$NDK_DIR-linux-x86_64.zip" > /dev/null 2>&1
+    unzip "$NDK_DIR-linux.zip" > /dev/null 2>&1
 fi
 
 # Build project generator
@@ -46,7 +53,7 @@ else
     cd $OF_ROOT/
     scripts/linux/download_libs.sh
     cd $OF_ROOT/apps/projectGenerator/commandLine
-    make Debug -C .
+    make -j Debug -C .
     ret=$?
     if [ $ret -ne 0 ]; then
           echo "Failed building Project Generator"

@@ -22,22 +22,22 @@ ofHttpResponse ofxEmscriptenURLFileLoader::get(const string & url){
 	return ofHttpResponse();
 }
 
-int ofxEmscriptenURLFileLoader::getAsync(const string &  url, const string &  name){
+int ofxEmscriptenURLFileLoader::getAsync(const string & url, const string & name){
 	ofHttpRequest * req = new ofHttpRequest(url,name,false);
-#if __EMSCRIPTEN_major__>1 || (__EMSCRIPTEN_major__==1 && __EMSCRIPTEN_minor__>22)
+#if __EMSCRIPTEN_major__ > 1 || (__EMSCRIPTEN_major__ == 1 && __EMSCRIPTEN_minor__ > 22)
 	emscripten_async_wget2_data(url.c_str(), "GET", "", req, true, &onload_cb, &onerror_cb, NULL);
 #endif
 	return req->getId();
 }
 
-ofHttpResponse ofxEmscriptenURLFileLoader::saveTo(const string &  url, const std::filesystem::path &  path){
+ofHttpResponse ofxEmscriptenURLFileLoader::saveTo(const string & url, const of::filesystem::path & path){
 	saveAsync(url,path);
 	return ofHttpResponse();
 }
 
-int ofxEmscriptenURLFileLoader::saveAsync(const string &  url, const std::filesystem::path &  path){
+int ofxEmscriptenURLFileLoader::saveAsync(const string & url, const of::filesystem::path & path){
 	ofHttpRequest * req = new ofHttpRequest(url,url,true);
-#if __EMSCRIPTEN_major__>1 || (__EMSCRIPTEN_major__==1 && __EMSCRIPTEN_minor__>22)
+#if __EMSCRIPTEN_major__ > 1 || (__EMSCRIPTEN_major__ == 1 && __EMSCRIPTEN_minor__ > 22)
 	emscripten_async_wget2(url.c_str(), path.c_str(), "GET", "", req, &onload_file_cb, &onerror_file_cb, NULL);
 #endif
 	return 0;

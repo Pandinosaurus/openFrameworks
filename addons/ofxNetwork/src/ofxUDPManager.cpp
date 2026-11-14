@@ -6,7 +6,7 @@
 #include "ofLog.h"
 #include "ofUtils.h"
 
-using namespace std;
+using std::string;
 
 //--------------------------------------------------------------------------------
 bool ofxUDPManager::m_bWinsockInit= false;
@@ -266,7 +266,7 @@ bool ofxUDPManager::ConnectMcast(char* pMcast, unsigned short usPort)
 	if (!Connect(pMcast, usPort))
 	{
 #ifdef _DEBUG
-		ofLogError("ofxUDPManager") << " ConnectMcast(): couldn't connect to socket";
+		ofLogError("ofxUDPManager") << "ConnectMcast(): couldn't connect to socket";
 		ofxNetworkLogLastError();
 #endif
 		return false;
@@ -309,7 +309,6 @@ int	ofxUDPManager::SendAll(const char*	pBuff, const int iSize)
 	auto timeleftSecs = m_dwTimeoutSend;
 	auto timeleftMicros = 0;
 	int total= 0;
-	int bytesleft = iSize;
 	int ret=-1;
 
 	while (total < iSize) {
@@ -324,7 +323,6 @@ int	ofxUDPManager::SendAll(const char*	pBuff, const int iSize)
 			return SOCKET_ERROR;
 		}
 		total += ret;
-		bytesleft -=ret;
 		if (m_dwTimeoutSend	!= NO_TIMEOUT){
 			auto now = ofGetElapsedTimeMicros();
 			auto diff = now - timestamp;
